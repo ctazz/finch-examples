@@ -72,7 +72,7 @@ class EndpointsTest extends FunSuite {
   test("one-or-the-other endpoint chooses the preferred query param") {
     assert(
       evalCoproduct[String](
-        endpoints.apply(Input.get("/details", "x" -> "preferred",  "y" -> "yes", "y" -> "no")).awaitValueUnsafe()
+        endpoints.apply(Input.get("/details", "y" -> "yes", "y" -> "no", "x" -> "preferred")).awaitValueUnsafe()
       ) == Some("x:preferred")
     )
   }

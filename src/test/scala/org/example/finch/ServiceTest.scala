@@ -64,23 +64,23 @@ class ServiceTest extends FunSuite {
     }
   }
 
-  test("one param or the other") {
+  test("one-or-the-other endpoint with multiple values for a single query param") {
     response(
-      Input.get("/details", "y" -> "yValue").request
+      Input.get("/details", "y" -> "yes", "y" -> "no").request
     ) match {
       case resp =>
         assert(resp.status == Status(200))
-        assert(resp.contentString == "\"y:yValue\"")  //Quotes appear because the service interprets the endpoint's result as a Json String, I guess.
+        assert(resp.contentString == "\"y:yes,no\"")  //Quotes appear because the service interprets the endpoint's result as a Json String, I guess.
     }
   }
 
-  test("one param or the other with first named param taking precedence") {
+  test("one-or-the-other endpoint chooses the preferred query param") {
     response(
-      Input.get("/details", "y" -> "yValue", "x" -> "xValue").request
+      Input.get("/details", "y" -> "yes", "y" -> "no", "x" -> "preferred").request
     ) match {
       case resp =>
         assert(resp.status == Status(200))
-        assert(resp.contentString == "\"x:xValue\"", "x queryParam should take precedence in the endpointDependsOnAtLeastOneSpecifiedQueryParam endpoint ")
+        assert(resp.contentString == "\"x:preferred\"", "x queryParam should take precedence in the endpointDependsOnAtLeastOneSpecifiedQueryParam endpoint ")
     }
   }
 
