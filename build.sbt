@@ -12,5 +12,7 @@ libraryDependencies ++= Seq(
 	"com.twitter"             %% "twitter-server" % "1.26.0",
 	"io.circe"                %% "circe-generic" % "0.9.0-M2",
 	"io.circe"                %% "circe-parser" % "0.9.0-M2",
-	"io.circe"                %% "circe-java8" % "0.9.0-M2"
+	"io.circe"                %% "circe-java8" % "0.9.0-M2",
+
+	"org.scalatest" %% "scalatest" % "3.0.4" % "test"
 )
