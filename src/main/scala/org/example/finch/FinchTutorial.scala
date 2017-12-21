@@ -2,6 +2,7 @@ package com.example.finch
 
 import com.twitter.finagle.Http
 import com.twitter.finagle.http.{ParamMap, Request, Response, Status}
+import io.finch.syntax.{EndpointMapper, Mapper}
 import shapeless.{HNil, Inl, Inr}
 
 import scala.reflect.ClassTag
@@ -11,7 +12,26 @@ import scala.util.{Failure, Success, Try}
 //TODO Handle a JSON input. See http://finagle.github.io/finch/user-guide.html#testing
 //CONCEPTS
 //Endpoint Input  EndpointResult   Out   Mapper
-object FinchTutorial extends App {
+//An Endpoint[A] hold a function Input => Endpoint.Result[A]
+//Endpoint.Result can get you Output[A] (or Option[Future[Output[A]]])
+//An EndpointMapper is an Endpoint that has not only the function Input => Endpoint.Result,
+//but also has a function  def(mapper: Mapper[A]): mapper.Out
+//The Mapper has a type Out
+//And the Mapper has a function Endpoint[A] => Endpoint[Out], where that A is the Mapper's type Out
+
+//A little more speculative here:
+//If you have an Endpoint[A] (that is, an Endpoint that, when you give it an Input gives you an Endpoint.Result[A])
+//and a Mapper[A] (that is, a holder for a function that goes from Endpoint[A] => Endpoint[Out]
+//then aMapper{type=Out}.itsFunc(anEndpoint[A]) gives an Endpoint[Out] (which, if you squint, is close to what you'd want)
+//And you create that Mapper by creating an EndpointMapper. In fact, you provide something like a function from
+//A => Output[B], and the finch implicits will create an EndpointMapper for you.
+
+//NEW: Only an EndpointMapper takes a Mapper, and we can't override an EndpointMapper's final def apply(input: Input): Endpoint.Result[A]
+//So the trick looks dead!
+
+//Shapeless has a Function to Product trick that turn a function of many arguments into a function of
+//one HList. The Mapper object uses this.
+object FinchTutorial extends App  {
 
   def evalCoProduct[A](o: Any)(implicit EV: ClassTag[A]): Option[A] = o match {
     case Inl(a) => evalCoProduct(a)
@@ -45,7 +65,7 @@ object FinchTutorial extends App {
   import shapeless._
 
 
-  def toMapper[IN, O](f: IN => Output[O] ) = new io.finch.internal.Mapper[IN] {
+  def toMapper[IN, O](f: IN => Output[O] ) = new io.finch.syntax.Mapper[IN] {
 
     type Out = O
 
@@ -62,8 +82,9 @@ object FinchTutorial extends App {
     else Ok(DivisionResult(a / b))
   }
 
-  val multPathEndpoint: Endpoint[Int :: Int :: HNil] = get("mult" :: path[Int] :: path[Int])
+  val multPathEndpoint: EndpointMapper[Int :: Int :: HNil] = get("mult" :: path[Int] :: path[Int])
   val intsToMultResult: (Int, Int) => Output[MultiplicationResult] = { case (a,b) => Ok(MultiplicationResult(a*b ))}
+  //This intsToMultResult gets converted to a Mapper when we pass it into EndpointMapper.apply
   val multiply: Endpoint[MultiplicationResult] = multPathEndpoint(intsToMultResult)
 
   val add: Endpoint[AddResult] = get("add" :: path[Int] :: path[Int]) { (a: Int, b: Int) =>
@@ -78,14 +99,24 @@ object FinchTutorial extends App {
   def toMultiMap(params: ParamMap): Map[String, Seq[String]] =
     params.keySet.foldLeft( Map.empty[String, Seq[String]]  )( (acc, key) => acc + (key -> params.getAll(key).toSeq )  )
 
-  //Returns a function that will accept an endpoint and,
-  //  if the request has at least one parameter that matches one of the argument keys
+  //The apply(mapper) is no longer on Endpoint, it's one EndpointMapper, and Finch has tightened the way we can get a EndpointMapper.
+  //We can now only get one through get(), post(), etc. We need this apply(mapper) function, so we had to create our
+  //own EndpointMapper analog
+  abstract class MuchLikeAnEndpointMapper[A] extends Endpoint[A] { self =>
+    def apply(mapper: Mapper[A]): Endpoint[mapper.Out] = mapper(self)
+  }
+
+
+  //Returns a function that will accept an endpoint as an argument and,
+  //  if the input.request has at least one parameter that matches one of the argument keys
   //    apply that initialEndpoint's function to the input
   //  else
   //    skip that initial Endpoint
+  //We return an ehanced Endpoint that has an additional function capable of mapping the Endpoint to a desired output.
   //Question: Could we do this coproducts instead, as in: paramExists("x") :+: paramExists("y")
-  def mustHaveAtLeastOneOfTheseParams[A](keys: Seq[String]): Endpoint[A] => Endpoint[A] = initialEndpoint => new Endpoint[A] {
-    final def apply(input: Input): Endpoint.Result[A] = {
+  def mustHaveAtLeastOneOfTheseParams[A](keys: Seq[String]): Endpoint[A] => MuchLikeAnEndpointMapper[A] = initialEndpoint => new MuchLikeAnEndpointMapper[A] { self =>
+
+    def apply(input: Input): Endpoint.Result[A] = {
       input.request.params.keySet match {
         case paramKeys => keys.find(paramKeys.contains(_)).map(_ =>  initialEndpoint(input)  ).getOrElse(
           EndpointResult.Skipped
@@ -95,8 +126,7 @@ object FinchTutorial extends App {
     }
   }
 
-  val endpointDependsOnAtLeastOneSpecifiedQueryParam: Endpoint[Request] = mustHaveAtLeastOneOfTheseParams(Seq("x", "y")).
-    apply(  get("details" :: root))
+  val endpointDependsOnAtLeastOneSpecifiedQueryParam = mustHaveAtLeastOneOfTheseParams(Seq("x", "y")).apply(  get("details" :: root))
 
   val requestToOutputString: Request => Output[String] = req => {
 
@@ -116,6 +146,8 @@ object FinchTutorial extends App {
   //val theNewfunction = input => requestToOutputString(endppointDependsOnAtLeastOneSpecifiedQueryParam(input))
   //The function we pass in here is somehow (I guess with an implicit conversion somewhere) turned into a Mapper[Request] with type String
   //Note: This would work without our toMapper function. The Mapper object's implicit defs would handle the conversion
+  //TODO You'd think we could do this with something like:
+  // val ourEndpointMapper: EndpointMapper[(String :+: String :+: CNil) :: Request :: HNil] = get("details" :: (param("x") :+: param("y")) :: root  )
   val returnThePreferredTuple: Endpoint[String] = endpointDependsOnAtLeastOneSpecifiedQueryParam.apply(toMapper(requestToOutputString))
 
   val whatIsThis = paramExists("x") :+: paramExists("y")
@@ -189,14 +221,6 @@ object FinchTutorial extends App {
   val badDivisionOutput: Output[DivisionResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+:CNil] =
     endpoints.apply(Input.get("/div/4/0")).awaitOutputUnsafe().get
   assert(badDivisionOutput.status == Status(400))
-
-/*  assert(
-    evalCoproduct[String](
-      endpoints.apply(
-        Input.get("/details", ( ("well" -> "yo")    ))
-      ).awaitValueUnsafe()
-    ) == Some("yo")
-  )*/
 
   println("the weird one" +
   endpoints.apply(
