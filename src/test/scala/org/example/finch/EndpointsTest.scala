@@ -18,7 +18,7 @@ class EndpointsTest extends FunSuite {
   import org.example.finch.Endpoints._
 
   val endpoints: Endpoint[DivisionResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+: CNil] =
-    divOrFail :+: multiply :+: add :+: requiresTwoQueryParams :+: returnThePreferredTuple
+    divOrFail :+: multiply :+: add :+: requiresTwoQueryParams :+: willReturnAParamAndItsValue
 
   test("test division endpoint in isolation") {
     divOrFail.apply(Input.get("/div/4/3")) match {

@@ -30,7 +30,7 @@ object Main extends App {
   import org.example.finch.ModelAndEncoders._
 
   val endpoints: Endpoint[DivisionResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+: CNil] =
-    divOrFail :+: multiply :+: add :+: requiresTwoQueryParams :+: returnThePreferredTuple
+    divOrFail :+: multiply :+: add :+: requiresTwoQueryParams :+: willReturnAParamAndItsValue
 
   import io.finch.Application
   import io.finch.circe._

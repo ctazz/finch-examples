@@ -19,7 +19,7 @@ class ServiceTest extends FunSuite {
   import org.example.finch.Endpoints._
   import shapeless._
   val endpoints: Endpoint[DivisionResult :+: MultiplicationResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+: CNil] =
-    divOrFail :+: multiply :+: multiplyTheUsualWay :+: add :+: requiresTwoQueryParams :+: returnThePreferredTuple
+    divOrFail :+: multiply :+: multiplyTheUsualWay :+: add :+: requiresTwoQueryParams :+: willReturnAParamAndItsValue
 
   import io.finch.circe._
   implicit val theService = endpoints.toServiceAs[Application.Json]

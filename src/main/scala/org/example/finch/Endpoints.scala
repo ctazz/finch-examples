@@ -54,20 +54,26 @@ object Endpoints {
   val intsToMultResult: (Int, Int) => Output[MultiplicationResult] = { case (a,b) => Ok(MultiplicationResult(a*b ))}
   val multiplyTheUsualWay: Endpoint[MultiplicationResult]  = get("multiply" :: path[Int] :: path[Int])(intsToMultResult)
 
-  //Create an endpoint that will only be called if both the specified query parameters are present
+  //Now let's create an endpoint that will only be called if both the specified query parameters are present
   val requiresTwoQueryParams: Endpoint[String] = get("details" ::( paramExists("well") :: paramExists("who")) ){ (str: String, str2: String) =>
     Ok(str + str2)
   }
 
+  //We'll use this function later.
+  //It returns the x query param and its associated value if there is an x param, otherwise, if there is a y param, it returns that param and its associated value
+  //Otherwise it's a bad request
   val requestToOutputString: Request => Output[String] = req => {
 
     val multi = toMultiMap(req.params)
-    val (key, value) = Seq(
+
+    Seq(
       multi.get("x").map(value => ("x" -> value)),
       multi.get("y").map(value => ("y" -> value))
-    ).flatten.head
+    ).flatten.headOption match {
+      case Some( (key, value)  ) => Ok(s"$key:${value.mkString(",")}")
+      case None => BadRequest(new RuntimeException("Neither request parameter x or y was present"))
+    }
 
-    Ok(s"$key:${value.mkString(",")}")
 
   }
 
@@ -80,7 +86,7 @@ object Endpoints {
   //   Use the identifier that takes precedence, and return the data associated with that identifier.
   val requireXOrYQueryParam = get("details" :: (paramExists("x") :+: paramExists("y")) :: root)
 
-  val returnThePreferredTuple = requireXOrYQueryParam{ (_: String :+: String :+: shapeless.CNil, req: Request) =>
+  val willReturnAParamAndItsValue = requireXOrYQueryParam{ (_: String :+: String :+: shapeless.CNil, req: Request) =>
 
     requestToOutputString(req)
 

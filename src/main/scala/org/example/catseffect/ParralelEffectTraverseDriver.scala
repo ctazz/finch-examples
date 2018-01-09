@@ -41,7 +41,7 @@ object ParralelEffectTraverseDriver extends App {
   //2 * dealy.  17 threads would likely bring the wait time to 3 * delay.
   //Of course with non-blocking IO, threads aren't actually blocked while waiting for the IO, and so more than 8 threads
   //can register for a callback at the same time.
-  //NOTE: See this article for a suggsetion about how to manage ExecutionContext when blocking IO is necessary:
+  //NOTE: See this article for a suggestion about how to manage ExecutionContexts when blocking IO is necessary:
   //https://typelevel.org/blog/2017/05/02/io-monad-for-cats.html
   //And if you need to handle blocking IO in an Akka app, see the following, which is not as well written, but is at least
   //specific to Akka.
