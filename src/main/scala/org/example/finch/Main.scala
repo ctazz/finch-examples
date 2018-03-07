@@ -2,8 +2,10 @@ package org.example.finch
 
 import io.finch.Endpoint
 
+
 //see http://finagle.github.io/finch/user-guide.html#understanding-endpoints  I try to add a little
-//TODO Handle a JSON input. See http://finagle.github.io/finch/user-guide.html#testing
+//See http://finagle.github.io/finch/user-guide.html#testing
+//See https://underscore.io/blog/posts/2017/01/24/finch-functional-web-development.html
 //CONCEPTS
 //Endpoint Input  EndpointResult   Out   Mapper
 //An Endpoint[A] hold a function Input => Endpoint.Result[A]

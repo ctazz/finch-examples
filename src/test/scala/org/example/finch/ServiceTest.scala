@@ -2,8 +2,8 @@ package org.example.finch
 
 import org.scalatest.FunSuite
 import io.finch._
-
 import com.twitter.finagle.http.{Request, Response, Status}
+import io.circe.{Encoder, Json}
 
 class ServiceTest extends FunSuite {
 
@@ -18,8 +18,8 @@ class ServiceTest extends FunSuite {
 
   import org.example.finch.Endpoints._
   import shapeless._
-  val endpoints: Endpoint[DivisionResult :+: MultiplicationResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+: CNil] =
-    divOrFail :+: multiply :+: multiplyTheUsualWay :+: add :+: requiresTwoQueryParams :+: willReturnAParamAndItsValue
+  val endpoints: Endpoint[Person :+: DivisionResult :+: MultiplicationResult :+: MultiplicationResult :+: AddResult :+: String :+: String :+: CNil] =
+    personPost :+: divOrFail :+: multiply :+: multiplyTheUsualWay :+: add :+: requiresTwoQueryParams :+: willReturnAParamAndItsValue
 
   import io.finch.circe._
   implicit val theService = endpoints.toServiceAs[Application.Json]
@@ -102,6 +102,31 @@ class ServiceTest extends FunSuite {
         assert(resp.status == Status(404), "Doesn't have any of the one-param-or-the-other params, " +
           "and doesn't have both of the requiresTwoQueryParams params, so should result in a NotFound")
     }
+  }
+
+  test("insert person") {
+
+    val id = 21
+    val data = Json.obj("name" ->   Json.fromString("Joe"), "age" -> Json.fromInt(47))
+
+    {
+      val resp = response(
+        Input.post(s"/person/$id").withBody[Application.Json](data).request
+      )
+
+      assert(resp.statusCode == 201)
+      assert(parseIt(resp.contentString)(personDecoder).right.get == Person(21, "Joe", 47))
+
+    }
+
+    {
+      val resp = response(
+        Input.post(s"/person/$id").withBody[Application.Json](data).request
+      )
+
+      assert(resp.statusCode == 409)
+    }
+
   }
 
   def await[T](futT: com.twitter.util.Future[T]): T = com.twitter.util.Await.result(futT)

@@ -105,4 +105,26 @@ object Endpoints {
   }
 
 
+  import io.finch.circe._
+  import io.circe.generic.auto._
+
+  //Example of convernting a json body into an object
+  //Here we create a person, and we expect the person's id will come
+  //in the request path.  Thus, rather than asking for a jsonBody[Person], we ask for a jsonBody[Int => Person]
+  //Note: We're not worrying about concurrent access here.  In a more worked out example we'd use a database or an Actor to hold Person records
+  var personHolder: Map[Int, Person] = Map.empty
+  val personPost: Endpoint[Person] = post("person" :: path[Int]   :: jsonBody[Int => Person]){ (id: Int, f: Int => Person) =>
+
+    //TODO No error message shows up
+    personHolder.get(id).map(_ => Conflict(new RuntimeException(s"We already have a person with id $id"))).getOrElse {
+      val thePerson = f(id)
+      personHolder = personHolder + (id -> thePerson)
+      Created(thePerson)
+
+    }
+
+
+  }
+
+
 }
